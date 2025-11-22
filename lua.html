@@ -13,11 +13,13 @@
             <div id="main" style="margin-left:15%;width:70%;color:#444444; max-width: 154em;">
                 <!-- One -->
                     <section id="two">
+
                         <header class="major">
-                            <h2>Scripted objects</h2>
+                            <div style="font-size:150%;text-align: center"><h1>Lua scripting</h1></div>
                             
-                            SpaceSim allows you to create custom objects using the <a href="https://lua.org/" >Lua</a> language.
+                            SpaceSim allows you to create <a href="#objects">custom objects</a> or <a href="#systems">simulation systems</a> using the <a href="https://lua.org/" >Lua</a> language.
                             <br /><br />
+                              <h2 id="objects">Scripted objects</h2>
 <h3>Example:</h3>
 You can try adding a scripted object by copying the script below, or by <a href="example_script.lua">downloading it</a>.
     <pre><code>require("math")
@@ -79,17 +81,17 @@ function generate(n)
     return state;
 end</code></pre>
 
-	<h3>Script functions</h3>
+    <h3>Script functions</h3>
     The script must define the following <b>mandatory</b> functions.
-    <table>	
+    <table>    
         <tr><td>generate(N)</td><td>Function creating particles. Takes the number of particles as an input parameter.</td></tr>
         <tr><td>getTotalMass</td><td>Returns the total mass of the object.</td></tr>
         <tr><td>getVolume</td><td>Return the total volume of the object.</td></tr> 
     </table>
-	<h3>Quantities</h3>
-	Script function <i>generate</i> has to return a table containing the particle quantities. All quantities are assumed to be in SI units
-	(meters, kilograms, Joules, etc.). The following quantities are <b>mandatory</b> and have to be returned by the function for the object 
-	to work:
+    <h3>Quantities</h3>
+    Script function <i>generate</i> has to return a table containing the particle quantities. All quantities are assumed to be in SI units
+    (meters, kilograms, Joules, etc.). The following quantities are <b>mandatory</b> and have to be returned by the function for the object 
+    to work:
      <table>
          <tr><td>position</td><td>Positions of all particles</td></tr>
          <tr><td>velocity</td><td>Velocities of all particles</td></tr>
@@ -103,21 +105,21 @@ end</code></pre>
          <tr><td>temperature</td><td>Temperatures, used to calculate the glow color</td></tr>
          <tr><td>energy</td><td>Initial specific internal energy, used by the SPH solver</td></tr>
          <tr><td>normal</td><td>Initial surface normal of particles</td></tr>
-		 <tr><td>uv</td><td>Texturing coordinates, a table containing two values in the interval [0, 1].</td></tr>
+         <tr><td>uv</td><td>Texturing coordinates, a table containing two values in the interval [0, 1].</td></tr>
     </table>
     If the density specified, the object enables the hydrodynamic solver and handles particle collisions, otherwise a pure gravity solver solver 
-	is used for the simulation.
+    is used for the simulation.
     <br /><br />
-	
-	<h3>Variables</h3>
-	Optionally, the script can define a global table named <i>parameters</i>, containing key-value pairs.
-	If used, the values will appear in the object panel and can be modified along other object properties, such as position or rotation.
-	Currently, only number parameters are supported. Values of different types are ignored.
-	<br />
-	The script can also define the following variables:
-	  <table>
+    
+    <h3>Variables</h3>
+    Optionally, the script can define a global table named <i>parameters</i>, containing key-value pairs.
+    If used, the values will appear in the object panel and can be modified along other object properties, such as position or rotation.
+    Currently, only number parameters are supported. Values of different types are ignored.
+    <br />
+    The script can also define the following variables:
+      <table>
          <tr><td>objectName</td><td>Name of the object in the "Add object" panel</td></tr>
-    </table>	
+    </table>    
     <h3>Constants</h3>
     The script can use a few useful constants, defined in the global table <code>Constants</code>.
     <table>
@@ -129,9 +131,136 @@ end</code></pre>
     </table>
     <h3>Object repository</h3>
     List of Lua objects you can use as a starting point for your own experiments:
- 	<table>
-		<tr><td><a href="spherical_planet.lua">spherical_planet.lua</a></td><td>Simple spherical planet, set up similarly to the built-in SpaceSim planets.</td></tr>
+     <table>
+        <tr><td><a href="spherical_planet.lua">spherical_planet.lua</a></td><td>Simple spherical planet, set up similarly to the built-in SpaceSim planets.</td></tr>
+    </table>
+                          <h2 id="systems">Scripted simulation systems</h2>
+<h3>Example:</h3>
+You can try adding a scripted system by copying the script below, or by <a href="explode_system.lua">downloading it</a>.
+    <pre><code>require("math")
+
+-- Simple system that explodes the largest object in the simulation.
+
+-- Initialize all quantities used by the script.
+-- These quantities will be updated by the simulation every time the script is run.
+-- All quantities are in SI units (meters, kilograms, Kelvins, ...).
+-- For the list of available quantities, see https://pavelsevecek.github.io/lua.html
+-- This is a mandatory field.
+particles = {};
+particles.mass = {}
+particles.position = {}
+particles.velocity = {}
+particles.island_index = {}
+particles.temperature = {}
+
+-- Names of all quantities changed by the script.
+-- These quantities are copied back to the simulation after the script returns.
+-- This is a mandatory field.
+update_quantities = {"velocity", "temperature" }; 
+
+-- Optional parameters of the system.
+-- The parameters can be changed in the simulation settings after compiling the script.
+parameters = {}
+parameters.explosion_velocity = 0.005;
+parameters.heating = 2000;
+
+-- Main entry point of the script.
+
+-- Called with period set in the simulation settings. If the period is 0,
+-- the function is called every time step.
+-- Parameters:
+-- t - Current simulation time (in seconds)
+-- dt - Current time step (in seconds);
+function onTimeStep(t, dt)
+    local island_counts = {};
+    for i = 1, #particles.island_index
+    do
+        local island = particles.island_index[i];
+        if island_counts[island] == nil then
+            island_counts[island] = 1;
+        else
+            island_counts[island] = island_counts[island] + 1;
+        end
+    end
+    local largest_island = 0;
+    local max_count = 0;
+    for island, count in pairs(island_counts) do
+        if count > max_count then
+            largest_island = island;
+            max_count = count;
+        end
+    end
+    
+    local x_com = 0;
+    local y_com = 0;
+    local z_com = 0;
+    local mass = 0;
+    for i = 1, #particles.island_index
+    do
+        if particles.island_index[i] == largest_island then
+            local m = particles.mass[i];
+            local r = particles.position[i];
+            x_com = x_com + m * r[1];
+            y_com = y_com + m * r[2];
+            z_com = z_com + m * r[3];
+            mass = mass + m;
+        end
+    end
+    x_com = x_com / mass;
+    y_com = y_com / mass;
+    z_com = z_com / mass;
+    local v = parameters.explosion_velocity;
+    for i = 1, #particles.island_index
+    do
+        if particles.island_index[i] == largest_island then
+            local r = particles.position[i];
+            particles.velocity[i] =
+            {
+              (r[1] - x_com) * v,
+              (r[2] - y_com) * v,
+              (r[3] - z_com) * v
+            };
+            particles.temperature[i] = particles.temperature[i] + parameters.heating;
+        end
+    end
+end
+end</code></pre>
+ <h3>Script functions</h3>
+    The script must define the following <b>mandatory</b> function.
+    <table>    
+        <tr><td>onTimeStep(t, dt)</td><td>Function called with the period set in the script settings.</td></tr>
+    </table>
+    <h3>Particles</h3>
+	Particle quantities can be read from (and written into) the global table <i>particles</i>. The script can read and modify any of the following quantities:
+     <table>
+         <tr><td>position</td><td>Positions of all particles</td></tr>
+         <tr><td>velocity</td><td>Velocities of all particles</td></tr>
+		 <tr><td>acceleration</td><td>Accelerations of all particles</td></tr>
+         <tr><td>mass</td><td>Particle masses</td></tr>
+         <tr><td>radius</td><td>Particle radii</td></tr>
+         <tr><td>density</td><td>Particle densities</td></tr>
+		 <tr><td>pressure</td><td>Pressure at the particle position</td></tr>
+         <tr><td>color</td><td>Diffuse color of particles</td></tr>
+         <tr><td>temperature</td><td>Temperatures, used to calculate the glow color</td></tr>
+         <tr><td>energy</td><td>Initial specific internal energy, used by the SPH solver</td></tr>
+		 <tr><td>phase</td><td>Current particle phase, 0 for solid and 1 for gas.</td></tr>
+         <tr><td>normal</td><td>Initial surface normal of particles</td></tr>
+         <tr><td>uv</td><td>Texturing coordinates, a table containing two values in the interval [0, 1].</td></tr>
+		 <tr><td>body_index</td><td>Index of the original object.</td></tr>
+		 <tr><td>island_index</td><td>Index of the current object.</td></tr>
+		 <tr><td>material_index</td><td>Material index.</td></tr>
+    </table>
+  
+	<h3>Rigid bodies</h3>
+	The script can also read and modify the state of rigid (non-deformable) objects by accessing the global table <i>rigid</i>. Each rigid object has the following quantities:
+	<table>
+		<tr><td>position</td><td>Object position.</td></tr>
+		<tr><td>velocity</td><td>Object velocity.</td></tr>
+		<tr><td>rotation</td><td>Object rotation given by Euler angles.</td></tr>
+		<tr><td>temperature</td><td>Surface temperature.</td></tr>
 	</table>
+    <br /><br />
+
                            </header>
                     </section>
             </div>
