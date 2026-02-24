@@ -17,7 +17,8 @@
                         <header class="major">
                             <div style="font-size:150%;text-align: center"><h1>Lua scripting</h1></div>
                             
-                            SpaceSim allows you to create <a href="#objects">custom objects</a> or <a href="#systems">simulation systems</a> using the <a href="https://lua.org/" >Lua</a> language.
+                            SpaceSim allows you to create <a href="#objects">custom objects</a>, <a href="#systems">simulation systems</a> and 
+							<a href="#setup">scripted simulation setup</a> using the <a href="https://lua.org/" >Lua</a> language.
                             <br /><br />
                               <h2 id="objects">Scripted objects</h2>
 <h3>Example:</h3>
@@ -134,7 +135,7 @@ end</code></pre>
      <table>
         <tr><td><a href="spherical_planet.lua">spherical_planet.lua</a></td><td>Simple spherical planet, set up similarly to the built-in SpaceSim planets.</td></tr>
     </table>
-                          <h2 id="systems">Scripted simulation systems</h2>
+<h2 id="systems">Scripted simulation systems</h2>
 <h3>Example:</h3>
 You can try adding a scripted system by copying the script below, or by <a href="explode_system.lua">downloading it</a>.
     <pre><code>require("math")
@@ -262,7 +263,57 @@ end
 	</table>
     <br /><br />
 
-                           </header>
+<h2 id="setup">Scripted simulation setup</h2>
+<h3>Example:</h3>
+You can try creating a simulation using the script below, or by <a href="setup_planets.lua">downloading it</a>.
+<pre><code>require("math")
+ 
+function generate()
+    local counter = 1;
+    for i = 1,10
+    do
+        for j = 1,10
+        do
+            -- Create Earth
+            earth = newObject("Earth");
+            earth.name = "planet " .. counter;
+            -- Adjust the parameters
+            earth.position = { i * 1.2e7, j * 1.2e7, 0};
+            earth.radius = 5e6 * i / 10;
+            earth.surface_temperature = (j - 1) * 500;
+            earth.deformable = false;
+			
+            -- Add the planet to the simulation
+            addObject(earth);
+			
+            counter = counter + 1;
+        end
+    end
+end
+</code></pre>
+<h3>Script functions</h3>
+    The script must define the following <b>mandatory</b> functions.
+    <table>    
+        <tr><td>generate</td><td>Main entry point of the script, generates all simulation objects.</td></tr>
+    </table>
+	The tools for generating simulations are currently quite limited. The script can all two functions:
+	<table>    
+        <tr><td>newObject(name)</td><td>Returns a new table defining an object. The object is identified using the name 
+		you can find in the 'Add' panel in SpaceSim (e.g. Earth, Disk galaxy, etc.). Custom objects can be used too.</td></tr>
+		<tr><td>addObject(object)</td><td>Adds an object previously created using newObject to the simulation setup.</td></tr>
+    </table>
+	You can modify the object created by <i>newObject</i> by writing to its fields, for example you can set its mass using <i>object.mass = 1000</i>.
+	
+	The field names are currently undocumented, but can found by adding the object to a simulation, saving it to a .sim file, and opening the file in a text editor.
+	Proper documentation will be added later.
+	
+<h3>Notes:</h3>
+	<ul>
+	<li>Running the setup script removes all previous objects.</li>
+	<li>All values are in SI units (meters, kilograms, etc.)</li>
+	<li>The object names are case-sensitive.</li>
+	</ul>
+</header>
                     </section>
             </div>
         
